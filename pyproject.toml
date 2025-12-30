@@ -4,17 +4,20 @@ build-backend = "hatchling.build"
 
 [project]
 name = "iocscrape"
-version = "0.1.0"
+version = "0.1.1"
 description = "Extract IOCs from URLs and files with safe defaults and low-confidence highlighting."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
 authors = [{ name = "Faisal Albuloushi", email = "SQL@hotmail.co.uk" }]
 dependencies = [
-  "pdfminer.six",
-  "python-docx",
-  "openpyxl",
-  "defusedxml",
+  "trafilatura>=1.6.0",
+  "publicsuffix2>=2.20191221",
+  "pdfminer.six>=20240706",
+  "python-docx>=1.1.2",
+  "openpyxl>=3.1.5",
+  "defusedxml>=0.7.1",
+  "colorama",
 ]
 
 [project.scripts]
