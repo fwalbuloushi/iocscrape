@@ -23,9 +23,9 @@ from publicsuffix2 import get_sld
 # ========= #
 
 APP_NAME = "iocscrape"
-APP_VERSION = "0.1.1"
+APP_VERSION = "0.1.2"
 PROJECT_URL = "https://github.com/fwalbuloushi/iocscrape"
-APP_DESC = "CTI tool to extract IOCs from CTI reports (URLs or files)"
+APP_DESC = "CTI tool to extract IOCs from CTI reports (URLs or files), and write them to an output file. Low-confidence items are grouped at the end."
 
 DEFAULT_TIMEOUT_SEC = 15
 DEFAULT_MAX_BYTES = 20 * 1024 * 1024  # 20MB
@@ -38,6 +38,7 @@ FILENAME_LIKE_EXTS = {
     "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
     "png", "jpg", "jpeg", "gif", "svg", "css", "woff", "woff2", "ico",
     "conf", "cfg", "rule", "dit", "vmx",
+    "py", "sh", "pl", "rs", "md", "so",     # ccTLDs that look like file extensions
 }
 
 STATIC_ASSET_EXTS = {"css", "png", "jpg", "jpeg", "gif", "svg", "woff", "woff2", "ico"}
@@ -748,9 +749,10 @@ def write_cache_meta() -> None:
 def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
         prog=APP_NAME,
-        description="Extract IOCs from a URL or file and write them to an output file. Low-confidence items are grouped at the end.",
+        description=f"{APP_NAME} v{APP_VERSION}: {APP_DESC}",
     )
 
+    p.add_argument("--version", action="version", version=f"{APP_NAME} {APP_VERSION}")
     g = p.add_mutually_exclusive_group(required=False)
     g.add_argument("--url", help="URL to fetch and extract IOCs from")
     g.add_argument("--file", help="Local file path to extract IOCs from (txt, html, pdf, docx, xlsx)")
