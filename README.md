@@ -1,4 +1,8 @@
 # iocscrape
+[![PyPI version](https://img.shields.io/pypi/v/iocscrape.svg)](https://pypi.org/project/iocscrape/)
+![Python Version](https://img.shields.io/badge/python-3.10+-blue.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
+![Category](https://img.shields.io/badge/Category-CTI-orange)
 
 **CTI tool to extract IOCs from CTI reports (URLs or files)**  
 IOC extraction is **best-effort** and may produce **false positives** - always review before ingestion.
