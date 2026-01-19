@@ -6,6 +6,7 @@ import json
 import os
 import re
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -23,7 +24,7 @@ from publicsuffix2 import get_sld
 # ========= #
 
 APP_NAME = "iocscrape"
-APP_VERSION = "0.1.2"
+APP_VERSION = "0.2.0"
 PROJECT_URL = "https://github.com/fwalbuloushi/iocscrape"
 APP_DESC = "CTI tool to extract IOCs from CTI reports (URLs or files), and write them to an output file. Low-confidence items are grouped at the end."
 
@@ -496,7 +497,19 @@ class WarninglistIndex:
 
     def match_domain(self, domain: str) -> Optional[str]:
         d = normalize_domain(domain)
-        return self._exact_map.get(d)
+        
+        # 1. Check exact match
+        if d in self._exact_map:
+            return self._exact_map[d]
+
+        # 2. Check parent domains (suffix match)
+        parts = d.split(".")
+        for i in range(1, len(parts)):
+            parent = ".".join(parts[i:])
+            if parent in self._exact_map:
+                return self._exact_map[parent]
+                
+        return None
 
     def match_url(self, url: str) -> Optional[str]:
         u = normalize_url(url).strip()
@@ -582,6 +595,21 @@ def compute_low_confidence(iocs: Dict[str, Set[str]], wl: WarninglistIndex) -> L
         pr = psl_invalid_reason(d)
         if pr:
             low.append(LowConfidenceItem("domain", d, pr))
+
+    # Emails
+    for e in sorted(iocs["email"]):
+        if "@" in e:
+            domain_part = e.split("@", 1)[1]
+            hit = wl.match_domain(domain_part)
+            # Check Warninglists
+            if hit:
+                low.append(LowConfidenceItem("email", e, f"Warninglist: {hit}"))
+                continue
+
+            # Check PSL
+            pr = psl_invalid_reason(domain_part)
+            if pr:
+                low.append(LowConfidenceItem("email", e, f"Invalid domain: {pr}"))
 
     # URLs
     for u in sorted(iocs["url"]):
@@ -809,7 +837,34 @@ def main(argv: Optional[List[str]] = None) -> None:
                 max_bytes=DEFAULT_MAX_BYTES,
                 redirect_limit=DEFAULT_REDIRECT_LIMIT,
             )
-            raw = decode_bytes(raw_bytes, headers)
+            # Determine extension from URL or Content-Type
+            ctype = headers.get("content-type", "").lower()
+            url_ext = os.path.splitext(final_url)[1].lower().strip(".")
+            # Force extension if headers are explicit, otherwise trust URL
+            use_ext = url_ext
+            if "application/pdf" in ctype and use_ext != "pdf":
+                use_ext = "pdf"
+            elif "wordprocessingml" in ctype and use_ext != "docx":
+                use_ext = "docx"
+            elif "spreadsheetml" in ctype and use_ext != "xlsx":
+                use_ext = "xlsx"
+
+            # Delegate binary formats to a temp file
+            if use_ext in ("pdf", "docx", "xlsx"):
+                _cli_line(f"Detected binary format ({use_ext}). Downloading to temp file...")
+                with tempfile.NamedTemporaryFile(delete=False, suffix=f".{use_ext}") as tmp:
+                    tmp.write(raw_bytes)
+                    tmp_path = tmp.name
+
+                try:
+                    raw = read_file_text(tmp_path)
+                finally:
+                    if os.path.exists(tmp_path):
+                        os.remove(tmp_path)
+            else:
+                # Default text/html handling
+                raw = decode_bytes(raw_bytes, headers)
+
             source = final_url
         else:
             raw = read_file_text(args.file)
