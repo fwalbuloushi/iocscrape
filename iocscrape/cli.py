@@ -24,7 +24,7 @@ from publicsuffix2 import get_sld
 # ========= #
 
 APP_NAME = "iocscrape"
-APP_VERSION = "0.2.0"
+APP_VERSION = "0.2.1"
 PROJECT_URL = "https://github.com/fwalbuloushi/iocscrape"
 APP_DESC = "CTI tool to extract IOCs from CTI reports (URLs or files), and write them to an output file. Low-confidence items are grouped at the end."
 
