@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "iocscrape"
-version = "0.2.2"
+version = "0.2.3"
 description = "CTI tool to extract IOCs from CTI reports (URLs or files), and write them to an output file. Low-confidence items are grouped at the end."
 readme = "README.md"
 requires-python = ">=3.10"

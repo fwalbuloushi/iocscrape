@@ -24,7 +24,7 @@ from publicsuffix2 import get_sld
 # ========= #
 
 APP_NAME = "iocscrape"
-APP_VERSION = "0.2.2"
+APP_VERSION = "0.2.3"
 PROJECT_URL = "https://github.com/fwalbuloushi/iocscrape"
 APP_DESC = "CTI tool to extract IOCs from CTI reports (URLs or files), and write them to an output file. Low-confidence items are grouped at the end."
 
@@ -502,13 +502,15 @@ class WarninglistIndex:
         if d in self._exact_map:
             return self._exact_map[d]
 
-        # 2. Check parent domains (suffix match)
+        # 2. Check parent domains (suffix match) — skip bare TLDs
         parts = d.split(".")
         for i in range(1, len(parts)):
             parent = ".".join(parts[i:])
+            if "." not in parent:
+                continue
             if parent in self._exact_map:
                 return self._exact_map[parent]
-                
+
         return None
 
     def match_url(self, url: str) -> Optional[str]:
