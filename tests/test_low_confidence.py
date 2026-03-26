@@ -1,4 +1,5 @@
-from iocscrape.cli import compute_low_confidence, load_warninglists, WarninglistIndex
+from iocscrape.low_confidence import compute_low_confidence
+from iocscrape.warninglist import load_warninglists, WarninglistIndex
 
 
 def _wl():
@@ -56,6 +57,16 @@ def test_bare_tld_in_warninglist_does_not_flag_all_domains():
     low = compute_low_confidence(iocs, wl)
     values = [item.value for item in low]
     assert "evil-c2.com" not in values
+
+def test_new_static_asset_extensions_flagged():
+    """URLs ending in font/image extensions added to STATIC_ASSET_EXTS
+    (webp, ttf, eot, otf, bmp) should be flagged as low-confidence."""
+    for ext in ("webp", "ttf", "eot", "otf", "bmp"):
+        url = f"https://cdn.example.com/asset.{ext}"
+        iocs = {"domain": set(), "url": {url}, "ipv4": set(), "ipv6": set(), "email": set(), "md5": set(), "sha1": set(), "sha256": set(), "cve": set()}
+        low = compute_low_confidence(iocs, _wl())
+        values = [item.value for item in low]
+        assert url in values, f"Expected {url} to be low-confidence"
 
 def test_ioc_domain_not_false_positive():
     """A real C2-style IOC domain whose parent is not in any warninglist

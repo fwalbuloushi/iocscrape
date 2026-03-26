@@ -1,4 +1,4 @@
-from iocscrape.cli import extract_iocs
+from iocscrape.extractor import extract_iocs
 
 
 def test_url():
@@ -51,3 +51,10 @@ def test_sha1_not_in_md5():
     iocs = extract_iocs(h)
     assert h in iocs["sha1"]
     assert h not in iocs["md5"]
+
+def test_url_path_not_extracted_as_domain():
+    """Path components from a URL (e.g. 'malicious.exe') must not appear in
+    the domain bucket — only the hostname should be extracted as a domain."""
+    iocs = extract_iocs("Dropper downloaded from https://evil-c2.com/malicious.exe")
+    assert "malicious.exe" not in iocs["domain"]
+    assert "evil-c2.com" in iocs["domain"]

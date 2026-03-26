@@ -1,4 +1,4 @@
-from iocscrape.cli import deobfuscate_text
+from iocscrape.deobfuscate import deobfuscate_text
 
 
 def test_hxxps():
