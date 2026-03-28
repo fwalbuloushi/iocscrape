@@ -1,7 +1,7 @@
 import os
 
 APP_NAME = "iocscrape"
-APP_VERSION = "0.3.0"
+APP_VERSION = "0.3.1"
 PROJECT_URL = "https://github.com/fwalbuloushi/iocscrape"
 APP_DESC = (
     "CTI tool to extract IOCs from CTI reports (URLs or files), "

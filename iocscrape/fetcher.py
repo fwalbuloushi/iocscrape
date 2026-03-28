@@ -1,7 +1,6 @@
 import gzip
 import os
 import re
-import tempfile
 import urllib.error
 import urllib.request
 import zlib

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "iocscrape"
-version = "0.3.0"
+version = "0.3.1"
 description = "CTI tool to extract IOCs from CTI reports (URLs or files), and write them to an output file. Low-confidence items are grouped at the end."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -20,7 +20,7 @@ dependencies = [
   "colorama",
   "urllib3>=2.6.3",
   "jaraco.context>=6.1.0",
-  "cryptography>=46.0.5",
+  "cryptography>=46.0.6",
   "lxml-html-clean>=0.4.4"
 ]
 

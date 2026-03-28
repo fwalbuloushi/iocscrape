@@ -1,3 +1,4 @@
+import os
 from typing import Optional
 
 from publicsuffix2 import get_sld
@@ -8,7 +9,6 @@ from .extractor import is_ip_literal
 
 
 def psl_file_path() -> Optional[str]:
-    import os
     if os.path.isfile(CACHE_PSL_FILE):
         return CACHE_PSL_FILE
     if os.path.isfile(BUNDLED_PSL_FILE):
