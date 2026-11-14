@@ -18,6 +18,7 @@ class WarninglistIndex:
     def __init__(self) -> None:
         self._exact_map: Dict[str, str] = {}
         self._cidr: List[Tuple[ipaddress._BaseNetwork, str]] = []
+        self.loaded = False
 
     @staticmethod
     def _iter_warninglist_files(base_dir: str) -> Iterable[str]:
@@ -78,6 +79,7 @@ class WarninglistIndex:
                 self._exact_map.setdefault(v_norm, name)
 
         self._cidr.sort(key=lambda x: (x[0].version, x[0].prefixlen, str(x[0])))
+        self.loaded = bool(self._exact_map or self._cidr)
 
     def match_domain(self, domain: str) -> Optional[str]:
         d = normalize_domain(domain)

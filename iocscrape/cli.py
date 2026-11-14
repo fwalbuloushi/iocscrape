@@ -30,6 +30,9 @@ def c_info(s: str) -> str:
 def c_ok(s: str) -> str:
     return f"{Style.BRIGHT}{Fore.GREEN}{s}{Style.RESET_ALL}"
 
+def c_warn(s: str) -> str:
+    return f"{Style.BRIGHT}{Fore.YELLOW}{s}{Style.RESET_ALL}"
+
 def _cli_line(msg: str) -> None:
     print(c_info("[#]"), msg)
 
@@ -42,6 +45,11 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
         prog=APP_NAME,
         description=f"{APP_NAME} v{APP_VERSION}: {APP_DESC}",
+        epilog=(
+            "Note: MISP warninglists are not bundled. Run 'iocscrape --update' once after "
+            f"installing (and periodically) to download them into {CACHE_DIR}. "
+            "A Public Suffix List snapshot is bundled."
+        ),
     )
 
     p.add_argument("--version", action="version", version=f"{APP_NAME} {APP_VERSION}")
@@ -51,7 +59,11 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
 
     p.add_argument("--out", help="Output file path (mandatory unless using --update alone)")
     p.add_argument("--format", default="txt", choices=["txt", "json"], help="Output format (default: txt)")
-    p.add_argument("--update", action="store_true", help=f"Update datasets (MISP warninglists + PSL) in cache ({CACHE_DIR})")
+    p.add_argument(
+        "--update",
+        action="store_true",
+        help=f"Download/refresh MISP warninglists and PSL into cache ({CACHE_DIR}). Required once for warninglist filtering",
+    )
 
     args = p.parse_args(argv)
 
@@ -143,6 +155,8 @@ def main(argv: Optional[List[str]] = None) -> None:
         iocs = extract_iocs(text)
 
         wl = load_warninglists()
+        if not wl.loaded:
+            print(c_warn("[!]"), "MISP warninglists not found, low-confidence filtering is limited. Run: iocscrape --update")
         low_conf = compute_low_confidence(iocs, wl)
 
         low_unique = len({(x.ioc_type, x.value) for x in low_conf})

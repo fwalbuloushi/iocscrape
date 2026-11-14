@@ -1,3 +1,5 @@
+import os
+
 from iocscrape.low_confidence import compute_low_confidence
 from iocscrape.warninglist import load_warninglists, WarninglistIndex
 
@@ -75,3 +77,7 @@ def test_ioc_domain_not_false_positive():
     low = compute_low_confidence(iocs, _wl())
     values = [item.value for item in low]
     assert "c2-server.badactor-infra.com" not in values
+
+def test_bundled_psl_is_packaged():
+    from iocscrape.constants import BUNDLED_PSL_FILE
+    assert os.path.isfile(BUNDLED_PSL_FILE)

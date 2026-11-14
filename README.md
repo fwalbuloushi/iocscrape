@@ -24,13 +24,13 @@ IOC extraction is **best-effort** and may produce **false positives** - always r
 - Uses **trafilatura** to convert web pages into clean text (reduces noise from hidden links / menus / assets).
 - Groups suspicious/noisy matches into **Low-Confidence (Review)** using:
   - **Public Suffix List (PSL)** validation
-  - **MISP warninglists** (vendored snapshot + optional `--update`)
+  - **MISP warninglists** (downloaded via `--update`, not bundled)
   - filename-like domain detection (e.g. `something.png`)
   - static asset URL detection (e.g. `.png`, `.css`, `.woff2`)
 - Output formats:
   - Default: **TXT** (pixhash-like run log style)
   - Optional: **JSON**
-- `--update` updates **both**: **warninglists + PSL**
+- Bundled **PSL** snapshot; `--update` refreshes **both** warninglists + PSL
 
 
 
@@ -47,6 +47,14 @@ pipx install iocscrape
 ```bash
 pip install iocscrape
 ```
+
+### First run
+Download the MISP warninglists (required once, ~65 MB):
+```bash
+iocscrape --update
+```
+Without them, iocscrape still works but prints a warning and only applies
+PSL, filename-like, static-asset and private-IP checks.
 
 
 
@@ -70,11 +78,9 @@ iocscrape --url "https://example.com/report" --out output.json --format json
 
 
 ## Updating datasets (Warninglists + PSL)
-By default, iocscrape ships with a vendored snapshot of:
-* MISP warninglists, and
-* Public Suffix List (PSL).
-
-To update them:
+iocscrape ships with a bundled snapshot of the Public Suffix List (PSL).
+MISP warninglists are **not bundled** due to their size (~65 MB) and must be
+downloaded into the cache. Re-run periodically to keep both up to date:
 ```bash
 iocscrape --update
 ```
@@ -107,7 +113,7 @@ Cache location:
 ### 1. TXT (Default)
 The output file is a run log:
 * **Results** section contains "high-confidence" IOCs
-* **Low-Condidence (Review)** section contains items flagged by:
+* **Low-Confidence (Review)** section contains items flagged by:
     * Warninglists match
     * PSL invalid suffix
     * Filename-like "domain"
