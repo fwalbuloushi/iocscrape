@@ -15,7 +15,7 @@ from .datasets import update_psl_to_cache, update_warninglists_to_cache, write_c
 from .deobfuscate import deobfuscate_text
 from .extractor import extract_iocs
 from .fetcher import fetch_url_bytes, decode_bytes, read_file_text, extract_article_text_from_html, looks_like_html
-from .low_confidence import LowConfidenceItem, compute_low_confidence
+from .low_confidence import LowConfidenceItem, compute_context, compute_low_confidence
 from .warninglist import load_warninglists
 from .writers import write_txt, write_json
 
@@ -164,14 +164,16 @@ def main(argv: Optional[List[str]] = None) -> None:
             if item.ioc_type in iocs:
                 iocs[item.ioc_type].discard(item.value)
 
+        context = compute_context(iocs, wl)
+
         final_total = sum(len(iocs.get(t, set())) for t in IOC_TYPES_ORDER)
         total_unique = final_total + low_unique
 
         out_path = args.out
         if args.format == "txt":
-            write_txt(out_path, source, iocs, low_conf, user_agent=user_agent)
+            write_txt(out_path, source, iocs, low_conf, user_agent=user_agent, context=context)
         else:
-            write_json(out_path, source, iocs, low_conf)
+            write_json(out_path, source, iocs, low_conf, context=context)
 
         print(f"\n{c_info('Total Unique IOCs:')} {Style.BRIGHT}{total_unique}{Style.RESET_ALL}\n")
         print(c_ok("IOC results and log file have been saved into:"))

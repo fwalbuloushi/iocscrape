@@ -29,6 +29,22 @@ STATIC_ASSET_EXTS = {
     "ico",
 }
 
+# Warninglists that describe infrastructure rather than benign IOCs.
+# Matches stay in Results and are listed under "Context".
+CONTEXT_WARNINGLISTS = {
+    # Cloud / hosting / VPS
+    "alibaba-cloud", "amazon-aws", "coreweave", "digitalocean", "godaddy",
+    "google-gcp", "hetzner", "huawei-cloud", "ibm-cloud", "leaseweb", "linode",
+    "microsoft-azure", "microsoft-azure-china", "microsoft-azure-germany",
+    "microsoft-azure-us-gov", "oracle-oci", "ovh-cluster", "rackspace", "scaleway",
+    "tencent-cloud", "vultr", "datacenter-ipv4", "datacenter-ipv6",
+    # Anonymisation
+    "tor-exit-nodes", "vpn-ipv4", "vpn-ipv6",
+    # Commonly abused services
+    "dynamic-dns", "url-shortener", "link-in-bio", "lots-project",
+    "public-ipfs-gateways", "personal-email-domains", "disposable-email",
+}
+
 # Cache paths
 def _cache_dir() -> str:
     base = os.environ.get("XDG_CACHE_HOME") or os.path.join(os.path.expanduser("~"), ".cache")

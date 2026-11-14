@@ -113,6 +113,9 @@ Cache location:
 ### 1. TXT (Default)
 The output file is a run log:
 * **Results** section contains "high-confidence" IOCs
+* **Context** section annotates Results IOCs that sit on notable infrastructure
+  (cloud/VPS hosting, Tor/VPN, dynamic DNS, URL shorteners, personal/disposable email).
+  These stay in Results, the note is for the analyst.
 * **Low-Confidence (Review)** section contains items flagged by:
     * Warninglists match
     * PSL invalid suffix
@@ -137,6 +140,13 @@ Results
 [#] URL (..)
 ...
 
+-------
+Context
+-------
+
+[#] IPV4 (..)
+value >> note
+
 -----------------------
 Low-Confidence (Review)
 -----------------------
@@ -150,6 +160,7 @@ Contains:
 * Counts per IOC type
 * IOC by type
 * Low-confidence array with reasons
+* Context array with notes
 
 
 

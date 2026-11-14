@@ -15,6 +15,13 @@ class LowConfidenceItem:
     reason: str
 
 
+@dataclass(frozen=True)
+class ContextItem:
+    ioc_type: str
+    value: str
+    note: str
+
+
 def ip_low_conf_reason(ip_str: str) -> Optional[str]:
     try:
         ip_obj = ipaddress.ip_address(ip_str)
@@ -51,7 +58,7 @@ def compute_low_confidence(
         if len(parts) == 2 and parts[1].lower() in FILENAME_LIKE_EXTS:
             low.append(LowConfidenceItem("domain", d, "looks like filename (extension)"))
 
-        hit = wl.match_domain(d)
+        hit = wl.match_domain(d) or wl.service_domain(d)
         if hit:
             low.append(LowConfidenceItem("domain", d, f"Warninglist: {hit}"))
 
@@ -63,7 +70,8 @@ def compute_low_confidence(
     for e in sorted(iocs["email"]):
         if "@" in e:
             domain_part = e.split("@", 1)[1]
-            hit = wl.match_domain(domain_part)
+            # Personal / disposable mailbox providers: the address itself is the IOC
+            hit = None if wl.context_domain(domain_part) else wl.match_domain(domain_part)
             if hit:
                 low.append(LowConfidenceItem("email", e, f"Warninglist: {hit}"))
                 continue
@@ -84,7 +92,11 @@ def compute_low_confidence(
         if pext in STATIC_ASSET_EXTS:
             low.append(LowConfidenceItem("url", u, "static asset url (likely noise)"))
 
-        hit = wl.match_url(u)
+        # URLs on abused services (shorteners, LOTS...): the full URL is the IOC
+        if host and (not is_ip_literal(host)) and wl.context_domain(host):
+            hit = wl.match_url_exact(u)
+        else:
+            hit = wl.match_url(u)
         if hit:
             low.append(LowConfidenceItem("url", u, f"Warninglist: {hit}"))
 
@@ -110,3 +122,37 @@ def compute_low_confidence(
         deduped.append(item)
 
     return deduped
+
+
+def compute_context(
+    iocs: Dict[str, Set[str]], wl: WarninglistIndex
+) -> List[ContextItem]:
+    """Annotate IOCs that remain in Results with infrastructure context (hosting, VPN, DDNS...)."""
+    ctx: List[ContextItem] = []
+
+    for d in sorted(iocs["domain"]):
+        note = wl.context_domain(d)
+        if note:
+            ctx.append(ContextItem("domain", d, note))
+
+    for e in sorted(iocs["email"]):
+        if "@" in e:
+            note = wl.context_domain(e.split("@", 1)[1])
+            if note:
+                ctx.append(ContextItem("email", e, note))
+
+    for u in sorted(iocs["url"]):
+        host = url_host(u)
+        if not host:
+            continue
+        note = wl.context_ip(host) if is_ip_literal(host) else wl.context_domain(host)
+        if note:
+            ctx.append(ContextItem("url", u, note))
+
+    for t in ("ipv4", "ipv6"):
+        for ip_str in sorted(iocs[t]):
+            note = wl.context_ip(ip_str)
+            if note:
+                ctx.append(ContextItem(t, ip_str, note))
+
+    return ctx

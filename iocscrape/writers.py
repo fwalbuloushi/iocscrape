@@ -1,9 +1,9 @@
 import json
 import time
-from typing import Dict, List, Set
+from typing import Dict, List, Optional, Set
 
 from .constants import APP_NAME, APP_VERSION, PROJECT_URL, IOC_TYPES_ORDER
-from .low_confidence import LowConfidenceItem
+from .low_confidence import ContextItem, LowConfidenceItem
 
 
 def _now_date_time_local():
@@ -16,6 +16,7 @@ def write_txt(
     iocs: Dict[str, Set[str]],
     low_conf: List[LowConfidenceItem],
     user_agent: str,
+    context: Optional[List[ContextItem]] = None,
 ) -> None:
     date_s, time_s = _now_date_time_local()
     title = f"{APP_NAME} Run Log"
@@ -42,6 +43,23 @@ def write_txt(
                 f.write(f"{v}\n")
             f.write("\n")
 
+        if context:
+            f.write("-------\n")
+            f.write("Context\n")
+            f.write("-------\n\n")
+
+            ctx_grouped: Dict[str, List[ContextItem]] = {}
+            for c in context:
+                ctx_grouped.setdefault(c.ioc_type, []).append(c)
+
+            for t in IOC_TYPES_ORDER:
+                if t not in ctx_grouped:
+                    continue
+                f.write(f"[#] {t.upper()} ({len(ctx_grouped[t])})\n")
+                for c in ctx_grouped[t]:
+                    f.write(f"{c.value} >> {c.note}\n")
+                f.write("\n")
+
         f.write("-----------------------\n")
         f.write("Low-Confidence (Review)\n")
         f.write("-----------------------\n\n")
@@ -66,6 +84,7 @@ def write_json(
     source: str,
     iocs: Dict[str, Set[str]],
     low_conf: List[LowConfidenceItem],
+    context: Optional[List[ContextItem]] = None,
 ) -> None:
     payload = {
         "source": source,
@@ -75,6 +94,10 @@ def write_json(
         "low_confidence": [
             {"type": x.ioc_type, "value": x.value, "reason": x.reason}
             for x in low_conf
+        ],
+        "context": [
+            {"type": x.ioc_type, "value": x.value, "note": x.note}
+            for x in (context or [])
         ],
         "notice": "This tool may produce false positives. Review output before ingestion.",
     }

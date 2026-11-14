@@ -2,11 +2,14 @@ import ipaddress
 import os
 from typing import Dict, Iterable, List, Optional, Tuple
 
-from .constants import CACHE_WARNINGLISTS_DIR, BUNDLED_WARNINGLISTS_DIR
+from .constants import CACHE_WARNINGLISTS_DIR, BUNDLED_WARNINGLISTS_DIR, CONTEXT_WARNINGLISTS
 from ._utils import load_json_file
 from .deobfuscate import normalize_domain, normalize_url
 from .extractor import url_host, is_ip_literal
 from .psl import registrable_domain
+
+
+CidrList = List[Tuple[ipaddress._BaseNetwork, str]]
 
 
 class WarninglistIndex:
@@ -14,11 +17,16 @@ class WarninglistIndex:
     Minimal warninglist matcher:
     - exact string matches (domains/hosts/urls)
     - CIDR matches for IPs
+
+    Lists in CONTEXT_WARNINGLISTS are kept in a separate index. They describe
+    infrastructure (hosting, VPN, dynamic DNS...) and only annotate IOCs.
     """
 
     def __init__(self) -> None:
         self._exact_map: Dict[str, str] = {}
-        self._cidr: List[Tuple[ipaddress._BaseNetwork, str]] = []
+        self._cidr: CidrList = []
+        self._ctx_exact: Dict[str, str] = {}
+        self._ctx_cidr: CidrList = []
         self.loaded = False
 
     @staticmethod
@@ -57,6 +65,12 @@ class WarninglistIndex:
             if not isinstance(items, list) or not items:
                 continue
 
+            list_id = os.path.basename(os.path.dirname(path))
+            if list_id in CONTEXT_WARNINGLISTS:
+                exact_map, cidr = self._ctx_exact, self._ctx_cidr
+            else:
+                exact_map, cidr = self._exact_map, self._cidr
+
             for raw in items:
                 if not isinstance(raw, str):
                     continue
@@ -69,18 +83,35 @@ class WarninglistIndex:
                 try:
                     if "/" in v_norm:
                         net = ipaddress.ip_network(v_norm, strict=False)
-                        self._cidr.append((net, name))
+                        cidr.append((net, name))
                         continue
                     ipaddress.ip_address(v_norm)
-                    self._exact_map.setdefault(v_norm, name)
+                    exact_map.setdefault(v_norm, name)
                     continue
                 except ValueError:
                     pass
 
-                self._exact_map.setdefault(v_norm, name)
+                exact_map.setdefault(v_norm, name)
 
-        self._cidr.sort(key=lambda x: (x[0].version, x[0].prefixlen, str(x[0])))
-        self.loaded = bool(self._exact_map or self._cidr)
+        for c in (self._cidr, self._ctx_cidr):
+            c.sort(key=lambda x: (x[0].version, x[0].prefixlen, str(x[0])))
+        self.loaded = bool(self._exact_map or self._cidr or self._ctx_exact or self._ctx_cidr)
+
+    @staticmethod
+    def _lookup_ip(ip_str: str, exact_map: Dict[str, str], cidr: CidrList) -> Optional[str]:
+        s = ip_str.strip().lower()
+        if s in exact_map:
+            return exact_map[s]
+        try:
+            ip_obj = ipaddress.ip_address(s)
+        except ValueError:
+            return None
+        for net, name in cidr:
+            if ip_obj.version != net.version:
+                continue
+            if ip_obj in net:
+                return name
+        return None
 
     def match_domain(self, domain: str) -> Optional[str]:
         d = normalize_domain(domain)
@@ -104,12 +135,15 @@ class WarninglistIndex:
 
         return None
 
-    def match_url(self, url: str) -> Optional[str]:
-        u = normalize_url(url).strip()
-        u_low = u.lower()
-        if u_low in self._exact_map:
-            return self._exact_map[u_low]
+    def match_url_exact(self, url: str) -> Optional[str]:
+        return self._exact_map.get(normalize_url(url).strip().lower())
 
+    def match_url(self, url: str) -> Optional[str]:
+        hit = self.match_url_exact(url)
+        if hit:
+            return hit
+
+        u = normalize_url(url).strip()
         h = url_host(u)
         if not h:
             return None
@@ -118,19 +152,30 @@ class WarninglistIndex:
         return self.match_domain(h)
 
     def match_ip(self, ip_str: str) -> Optional[str]:
-        s = ip_str.strip().lower()
-        if s in self._exact_map:
-            return self._exact_map[s]
-        try:
-            ip_obj = ipaddress.ip_address(s)
-        except ValueError:
-            return None
-        for net, name in self._cidr:
-            if ip_obj.version != net.version:
-                continue
-            if ip_obj in net:
-                return name
+        return self._lookup_ip(ip_str, self._exact_map, self._cidr)
+
+    # ------------- #
+    # Context lists #
+    # ------------- #
+
+    def service_domain(self, domain: str) -> Optional[str]:
+        """Exact match on a context list, e.g. 'duckdns.org' itself (the service, not a customer)."""
+        return self._ctx_exact.get(normalize_domain(domain))
+
+    def context_domain(self, domain: str) -> Optional[str]:
+        """Context match for a domain or any parent, including public suffixes like duckdns.org."""
+        d = normalize_domain(domain)
+        parts = d.split(".")
+        for i in range(len(parts)):
+            parent = ".".join(parts[i:])
+            if "." not in parent:
+                break
+            if parent in self._ctx_exact:
+                return self._ctx_exact[parent]
         return None
+
+    def context_ip(self, ip_str: str) -> Optional[str]:
+        return self._lookup_ip(ip_str, self._ctx_exact, self._ctx_cidr)
 
 
 def load_warninglists() -> WarninglistIndex:
