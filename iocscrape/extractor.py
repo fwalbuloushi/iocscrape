@@ -1,6 +1,7 @@
 import ipaddress
 import re
 from typing import Dict, Optional, Set
+from urllib.parse import urlsplit
 
 from .constants import IOC_TYPES_ORDER
 from .deobfuscate import normalize_domain, normalize_url, normalize_hash, strip_trailing_punct
@@ -20,7 +21,10 @@ DOMAIN_RE = re.compile(
 EMAIL_RE = re.compile(r"\b[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,63}\b", re.IGNORECASE)
 
 IPV4_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
-IPV6_RE = re.compile(r"\b(?:[0-9a-f]{0,4}:){2,7}[0-9a-f]{0,4}\b", re.IGNORECASE)
+IPV6_RE = re.compile(
+    r"(?<![\w:])(?:[0-9a-f]{0,4}:){2,7}(?:\d{1,3}(?:\.\d{1,3}){3}|[0-9a-f]{0,4})(?![\w:])",
+    re.IGNORECASE,
+)
 
 MD5_RE = re.compile(r"\b[a-f0-9]{32}\b", re.IGNORECASE)
 SHA1_RE = re.compile(r"\b[a-f0-9]{40}\b", re.IGNORECASE)
@@ -34,6 +38,12 @@ CVE_RE = re.compile(r"\bCVE-\d{4}-\d{4,}\b", re.IGNORECASE)
 # ============ #
 
 def url_host(url: str) -> Optional[str]:
+    try:
+        host = urlsplit(url).hostname
+        if host:
+            return host.lower().strip(".")
+    except ValueError:
+        pass
     m = re.match(r"^https?://([^/]+)", url, flags=re.IGNORECASE)
     if not m:
         return None
@@ -77,7 +87,10 @@ def extract_iocs(text: str) -> Dict[str, Set[str]]:
     for m in IPV4_RE.finditer(text):
         out["ipv4"].add(strip_trailing_punct(m.group(0)))
     for m in IPV6_RE.finditer(text):
-        out["ipv6"].add(strip_trailing_punct(m.group(0)))
+        try:
+            out["ipv6"].add(str(ipaddress.IPv6Address(m.group(0))))
+        except ValueError:
+            continue
 
     # Replace URLs with their hostname only before running the domain regex.
     # This prevents URL path components (e.g. "malicious.exe" from

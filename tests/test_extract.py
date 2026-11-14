@@ -58,3 +58,28 @@ def test_url_path_not_extracted_as_domain():
     iocs = extract_iocs("Dropper downloaded from https://evil-c2.com/malicious.exe")
     assert "malicious.exe" not in iocs["domain"]
     assert "evil-c2.com" in iocs["domain"]
+
+def test_ipv6_ignores_times_and_macs():
+    iocs = extract_iocs("Logged at 12:30:45 from MAC 00:1A:2B:3C:4D:5E, ratio 1:2:3")
+    assert iocs["ipv6"] == set()
+
+def test_ipv6_leading_double_colon():
+    iocs = extract_iocs("Loopback ::1 was used for testing")
+    assert "::1" in iocs["ipv6"]
+
+def test_ipv6_ipv4_mapped():
+    iocs = extract_iocs("Mapped address ::ffff:203.0.113.5 seen")
+    assert "::ffff:203.0.113.5" in iocs["ipv6"]
+
+def test_ipv6_normalized():
+    iocs = extract_iocs("2001:0DB8:0000:0000:0000:0000:0000:0001 and 2001:db8::1")
+    assert iocs["ipv6"] == {"2001:db8::1"}
+
+def test_ipv6_not_from_cpp_scope():
+    iocs = extract_iocs("calls std::vector and Foo::Bar")
+    assert iocs["ipv6"] == set()
+
+def test_url_host_ipv6_literal():
+    from iocscrape.extractor import url_host
+    assert url_host("http://[2001:db8::5]:8080/x") == "2001:db8::5"
+    assert url_host("https://user:pw@Evil.COM:443/a") == "evil.com"
