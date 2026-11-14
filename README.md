@@ -176,6 +176,14 @@ This tool uses regex-based extraction. It can still pick up:
 
 
 
+## Development Notes
+
+iocscrape has been developed with the help of AI tools, used for code review,
+bug fixing and test writing. All changes are reviewed, tested and approved by
+the maintainer before each release.
+
+
+
 ## License
 
 MIT License. See `LICENSE`.
