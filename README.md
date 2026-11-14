@@ -3,6 +3,7 @@
 ![Python Version](https://img.shields.io/badge/python-3.10+-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Category](https://img.shields.io/badge/Category-CTI-orange)
+[![Tests](https://github.com/fwalbuloushi/iocscrape/actions/workflows/tests.yml/badge.svg)](https://github.com/fwalbuloushi/iocscrape/actions/workflows/tests.yml)
 
 **CTI tool to extract IOCs from CTI reports (URLs or files)**  
 IOC extraction is **best-effort** and may produce **false positives** - always review before ingestion.
