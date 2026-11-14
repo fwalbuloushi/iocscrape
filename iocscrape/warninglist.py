@@ -151,6 +151,9 @@ class WarninglistIndex:
             return self.match_ip(h)
         return self.match_domain(h)
 
+    def match_hash(self, h: str) -> Optional[str]:
+        return self._exact_map.get(h.strip().lower())
+
     def match_ip(self, ip_str: str) -> Optional[str]:
         return self._lookup_ip(ip_str, self._exact_map, self._cidr)
 

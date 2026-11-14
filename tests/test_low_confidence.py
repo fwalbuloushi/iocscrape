@@ -102,3 +102,16 @@ def test_leading_dot_entry_matches_subdomain(tmp_path, monkeypatch):
     monkeypatch.setattr(WarninglistIndex, "_pick_warninglists_base_dir", staticmethod(lambda: str(tmp_path)))
     wl = load_warninglists()
     assert wl.match_domain("cdn.example.org") == "Test list"
+
+def test_empty_file_hash_flagged():
+    wl = WarninglistIndex()
+    wl._exact_map["d41d8cd98f00b204e9800998ecf8427e"] = "List of known hashes for empty files"
+    iocs = {"domain": set(), "url": set(), "ipv4": set(), "ipv6": set(), "email": set(), "md5": {"d41d8cd98f00b204e9800998ecf8427e"}, "sha1": set(), "sha256": set(), "cve": set()}
+    low = compute_low_confidence(iocs, wl)
+    assert [(x.value, x.reason) for x in low] == [("d41d8cd98f00b204e9800998ecf8427e", "Warninglist: List of known hashes for empty files")]
+
+def test_unknown_hash_stays_high_confidence():
+    wl = WarninglistIndex()
+    h = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b856"
+    iocs = {"domain": set(), "url": set(), "ipv4": set(), "ipv6": set(), "email": set(), "md5": set(), "sha1": set(), "sha256": {h}, "cve": set()}
+    assert compute_low_confidence(iocs, wl) == []

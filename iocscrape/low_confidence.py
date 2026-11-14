@@ -111,6 +111,13 @@ def compute_low_confidence(
             if hit:
                 low.append(LowConfidenceItem(t, ip_str, f"Warninglist: {hit}"))
 
+    # Hashes
+    for t in ("md5", "sha1", "sha256"):
+        for h in sorted(iocs[t]):
+            hit = wl.match_hash(h)
+            if hit:
+                low.append(LowConfidenceItem(t, h, f"Warninglist: {hit}"))
+
     # De-duplicate per (type, value) — keep first reason
     seen = set()
     deduped: List[LowConfidenceItem] = []

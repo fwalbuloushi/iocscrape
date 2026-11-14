@@ -118,6 +118,7 @@ The output file is a run log:
   These stay in Results, the note is for the analyst.
 * **Low-Confidence (Review)** section contains items flagged by:
     * Warninglists match
+    * Known benign / false-positive hash (empty file, EICAR, Windows binaries...)
     * PSL invalid suffix
     * Filename-like "domain"
     * Static asset URL
