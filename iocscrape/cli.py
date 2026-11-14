@@ -94,6 +94,7 @@ def main(argv: Optional[List[str]] = None) -> None:
     _cli_line(f"Target: {source}\n")
 
     try:
+        is_html = False
         if args.url:
             raw_bytes, final_url, headers = fetch_url_bytes(
                 args.url,
@@ -123,14 +124,20 @@ def main(argv: Optional[List[str]] = None) -> None:
                         os.remove(tmp_path)
             else:
                 raw = decode_bytes(raw_bytes, headers)
+                is_html = "html" in ctype or looks_like_html(raw)
 
             source = final_url
         else:
             raw = read_file_text(args.file)
+            file_ext = os.path.splitext(args.file)[1].lower().strip(".")
+            is_html = file_ext in ("html", "htm") or (file_ext == "txt" and looks_like_html(raw))
 
         processed = raw
-        if looks_like_html(raw):
+        if is_html:
             processed = extract_article_text_from_html(raw)
+            if not processed:
+                _cli_line("Article extraction returned no text, falling back to raw content.")
+                processed = raw
 
         text = deobfuscate_text(processed)
         iocs = extract_iocs(text)

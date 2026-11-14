@@ -154,5 +154,5 @@ def extract_article_text_from_html(html: str) -> str:
 
 
 def looks_like_html(s: str) -> bool:
-    sl = s.lower()
-    return "<html" in sl or "</" in sl
+    head = s.lstrip()[:2048].lower()
+    return head.startswith("<!doctype html") or head.startswith("<html") or "<html" in head
