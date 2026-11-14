@@ -1,3 +1,4 @@
+import json
 import os
 
 from iocscrape.low_confidence import compute_low_confidence
@@ -81,3 +82,23 @@ def test_ioc_domain_not_false_positive():
 def test_bundled_psl_is_packaged():
     from iocscrape.constants import BUNDLED_PSL_FILE
     assert os.path.isfile(BUNDLED_PSL_FILE)
+
+def test_public_suffix_parent_does_not_flag_subdomain():
+    """Subdomains under public suffixes (co.uk, duckdns.org) must not match the suffix itself."""
+    wl = WarninglistIndex()
+    wl._exact_map["co.uk"] = "Second level TLDs"
+    wl._exact_map["duckdns.org"] = "Top sites"
+    iocs = {"domain": {"evil-c2.co.uk", "attacker.duckdns.org"}, "url": set(), "ipv4": set(), "ipv6": set(), "email": set(), "md5": set(), "sha1": set(), "sha256": set(), "cve": set()}
+    low = compute_low_confidence(iocs, wl)
+    values = [item.value for item in low]
+    assert "evil-c2.co.uk" not in values
+    assert "attacker.duckdns.org" not in values
+
+def test_leading_dot_entry_matches_subdomain(tmp_path, monkeypatch):
+    """Warninglist entries like '.example.org' should match subdomains."""
+    lists_dir = tmp_path / "lists" / "test"
+    lists_dir.mkdir(parents=True)
+    (lists_dir / "list.json").write_text(json.dumps({"name": "Test list", "list": [".example.org"]}), encoding="utf-8")
+    monkeypatch.setattr(WarninglistIndex, "_pick_warninglists_base_dir", staticmethod(lambda: str(tmp_path)))
+    wl = load_warninglists()
+    assert wl.match_domain("cdn.example.org") == "Test list"

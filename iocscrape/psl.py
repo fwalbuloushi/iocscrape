@@ -38,3 +38,14 @@ def psl_invalid_reason(domain: str) -> Optional[str]:
         return "invalid public suffix (PSL)"
 
     return None
+
+
+def registrable_domain(domain: str) -> Optional[str]:
+    d = normalize_domain(domain)
+    psl_path = psl_file_path()
+    if not psl_path or not d or is_ip_literal(d):
+        return None
+    try:
+        return get_sld(d, strict=True, psl_file=psl_path)
+    except Exception:
+        return None

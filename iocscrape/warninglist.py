@@ -6,6 +6,7 @@ from .constants import CACHE_WARNINGLISTS_DIR, BUNDLED_WARNINGLISTS_DIR
 from ._utils import load_json_file
 from .deobfuscate import normalize_domain, normalize_url
 from .extractor import url_host, is_ip_literal
+from .psl import registrable_domain
 
 
 class WarninglistIndex:
@@ -63,7 +64,7 @@ class WarninglistIndex:
                 if not v:
                     continue
 
-                v_norm = v.lower().strip()
+                v_norm = v.lower().strip().lstrip(".")
 
                 try:
                     if "/" in v_norm:
@@ -88,12 +89,16 @@ class WarninglistIndex:
         if d in self._exact_map:
             return self._exact_map[d]
 
-        # 2. Check parent domains (suffix match) — skip bare TLDs
+        # 2. Check parent domains (suffix match), but never above the
+        #    registrable domain (e.g. co.uk, duckdns.org, github.io)
+        reg = registrable_domain(d)
         parts = d.split(".")
         for i in range(1, len(parts)):
             parent = ".".join(parts[i:])
             if "." not in parent:
-                continue
+                break
+            if reg and len(parent) < len(reg):
+                break
             if parent in self._exact_map:
                 return self._exact_map[parent]
 
