@@ -1,7 +1,7 @@
-import gzip
 import os
 import re
 import urllib.error
+import urllib.parse
 import urllib.request
 import zlib
 from typing import Dict, Tuple
@@ -11,15 +11,43 @@ import trafilatura
 from .constants import APP_NAME, APP_VERSION, PROJECT_URL
 
 
-def _decompress(data: bytes, content_encoding: str) -> bytes:
+ALLOWED_SCHEMES = ("http", "https")
+
+
+class _NoAutoRedirect(urllib.request.HTTPRedirectHandler):
+    """Let fetch_url_bytes handle redirects itself so the limit is enforced."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+_OPENER = urllib.request.build_opener(_NoAutoRedirect)
+
+
+def _check_scheme(url: str) -> None:
+    scheme = urllib.parse.urlsplit(url).scheme.lower()
+    if scheme not in ALLOWED_SCHEMES:
+        raise RuntimeError(f"Unsupported URL scheme: {scheme or '(none)'} (only http/https)")
+
+
+def _decompress(data: bytes, content_encoding: str, max_bytes: int) -> bytes:
     enc = (content_encoding or "").lower()
     if "gzip" in enc:
-        return gzip.decompress(data)
-    if "deflate" in enc:
+        wbits_options = [16 + zlib.MAX_WBITS]
+    elif "deflate" in enc:
+        wbits_options = [zlib.MAX_WBITS, -zlib.MAX_WBITS]   # zlib-wrapped, then raw
+    else:
+        return data
+
+    for i, wbits in enumerate(wbits_options):
         try:
-            return zlib.decompress(data)
+            out = zlib.decompressobj(wbits).decompress(data, max_bytes + 1)
         except zlib.error:
-            return zlib.decompress(data, -zlib.MAX_WBITS)
+            if i == len(wbits_options) - 1:
+                raise
+            continue
+        if len(out) > max_bytes:
+            raise ValueError(f"Decompressed response exceeded max size ({max_bytes} bytes).")
+        return out
     return data
 
 
@@ -28,6 +56,7 @@ def fetch_url_bytes(
 ) -> Tuple[bytes, str, Dict[str, str]]:
     current_url = url
     accept_encoding = "gzip, deflate, identity"
+    _check_scheme(current_url)
 
     for _ in range(redirect_limit + 1):
         req = urllib.request.Request(
@@ -40,17 +69,9 @@ def fetch_url_bytes(
         )
 
         try:
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
-                status = getattr(resp, "status", None)
+            with _OPENER.open(req, timeout=timeout) as resp:
                 final_url = resp.geturl()
                 headers = {k.lower(): v for k, v in resp.headers.items()}
-
-                if status in (301, 302, 303, 307, 308):
-                    loc = resp.headers.get("Location")
-                    if not loc:
-                        break
-                    current_url = urllib.request.urljoin(final_url, loc)
-                    continue
 
                 data = resp.read(max_bytes + 1)
                 if len(data) > max_bytes:
@@ -61,10 +82,14 @@ def fetch_url_bytes(
                     accept_encoding = "identity"
                     continue
 
-                data = _decompress(data, ce)
+                data = _decompress(data, ce, max_bytes)
                 return data, final_url, headers
 
         except urllib.error.HTTPError as e:
+            if e.code in (301, 302, 303, 307, 308) and e.headers.get("Location"):
+                current_url = urllib.parse.urljoin(current_url, e.headers["Location"])
+                _check_scheme(current_url)
+                continue
             raise RuntimeError(f"HTTP error fetching URL: {e.code} {e.reason}") from e
         except urllib.error.URLError as e:
             raise RuntimeError(f"Network error fetching URL: {e.reason}") from e
